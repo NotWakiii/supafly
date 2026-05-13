@@ -7,15 +7,15 @@ const name = ref('')
 const position = ref('')
 const salary = ref(0)
 
-// READ: Fetch rows from Supabase
+
 const fetchEmployees = async () => {
   const { data } = await supabase.from('employees').select('*')
   employees.value = data
 }
 
-// CREATE: Add a new employee
+
 const addEmployee = async () => {
-  if (!name.value) return; // Basic validation
+  if (!name.value) return; 
   await supabase.from('employees').insert([{ 
     name: name.value, 
     position: position.value, 
@@ -27,7 +27,7 @@ const addEmployee = async () => {
   fetchEmployees() 
 }
 
-// DELETE: Remove an employee
+
 const deleteEmployee = async (id) => {
   await supabase.from('employees').delete().eq('id', id)
   fetchEmployees()
@@ -46,7 +46,7 @@ onMounted(() => {
     </header>
 
     <main>
-      <!-- Form Card -->
+      
       <section class="card form-card">
         <h2>Add New Record</h2>
         <div class="input-row">
@@ -57,7 +57,7 @@ onMounted(() => {
         </div>
       </section>
 
-      <!-- List Section -->
+     
       <section class="list-section">
         <div class="list-header">
           <h2>Team Members</h2>
@@ -86,7 +86,7 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* Reset and Container */
+
 .container {
   max-width: 800px;
   margin: 40px auto;
@@ -111,7 +111,7 @@ onMounted(() => {
   font-size: 1.1rem;
 }
 
-/* Common Card Style */
+
 .card {
   background: white;
   border-radius: 12px;
@@ -120,7 +120,7 @@ onMounted(() => {
   border: 1px solid #e2e8f0;
 }
 
-/* Form Styling */
+
 .form-card h2 {
   font-size: 1.25rem;
   margin-top: 0;
