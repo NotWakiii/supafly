@@ -1,18 +1,26 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { supabase } from './supabase'
 
 const employees = ref([])
 const name = ref('')
 const position = ref('')
 const salary = ref(0)
-
+const searchQuery = ref('')
 
 const fetchEmployees = async () => {
-  const { data } = await supabase.from('employees').select('*')
-  employees.value = data
+  const { data } = await supabase.from('employees').select('*').order('id', { ascending: false })
+  
+  employees.value = data.map(emp => ({ ...emp, isEditing: false }))
 }
 
+
+const filteredEmployees = computed(() => {
+  return employees.value.filter(emp => {
+    const query = searchQuery.value.toLowerCase()
+    return emp.name.toLowerCase().includes(query) || emp.id.toString().includes(query)
+  })
+})
 
 const addEmployee = async () => {
   if (!name.value) return; 
@@ -21,12 +29,22 @@ const addEmployee = async () => {
     position: position.value, 
     salary: salary.value 
   }])
-  name.value = ''
-  position.value = ''
-  salary.value = 0
+  name.value = ''; position.value = ''; salary.value = 0
   fetchEmployees() 
 }
 
+
+const updateEmployee = async (emp) => {
+  const { error } = await supabase
+    .from('employees')
+    .update({ name: emp.name, position: emp.position, salary: emp.salary })
+    .eq('id', emp.id)
+  
+  if (!error) {
+    emp.isEditing = false
+    fetchEmployees()
+  }
+}
 
 const deleteEmployee = async (id) => {
   await supabase.from('employees').delete().eq('id', id)
@@ -46,7 +64,6 @@ onMounted(() => {
     </header>
 
     <main>
-      
       <section class="card form-card">
         <h2>Add New Record</h2>
         <div class="input-row">
@@ -57,27 +74,47 @@ onMounted(() => {
         </div>
       </section>
 
-     
       <section class="list-section">
         <div class="list-header">
           <h2>Team Members</h2>
-          <span class="count">{{ employees.length }} total</span>
+          <div class="header-actions">
+            <input v-model="searchQuery" placeholder="Search ID or Name..." class="search-bar" />
+            <span class="count">{{ filteredEmployees.length }} total</span>
+          </div>
         </div>
 
-        <div v-if="employees.length === 0" class="empty">
-          No employees found in the database.
+        <div v-if="filteredEmployees.length === 0" class="empty">
+          No employees found matching your search.
         </div>
 
         <ul class="employee-list">
-          <li v-for="emp in employees" :key="emp.id" class="employee-item">
-            <div class="info">
-              <span class="name">{{ emp.name }}</span>
-              <span class="position">{{ emp.position }}</span>
+          <li v-for="emp in filteredEmployees" :key="emp.id" class="employee-item">
+            
+            
+            <div v-if="emp.isEditing" class="input-row" style="width: 100%;">
+              <input v-model="emp.name" />
+              <input v-model="emp.position" />
+              <input v-model.number="emp.salary" type="number" />
+              <div class="actions">
+                <button class="save-btn" @click="updateEmployee(emp)">Save</button>
+                <button class="delete-btn" @click="emp.isEditing = false">Cancel</button>
+              </div>
             </div>
-            <div class="actions">
-              <span class="salary">${{ emp.salary.toLocaleString() }}</span>
-              <button class="delete-btn" @click="deleteEmployee(emp.id)">Remove</button>
-            </div>
+
+            
+            <template v-else>
+              <div class="info">
+                <span class="id-text">#{{ emp.id }}</span>
+                <span class="name">{{ emp.name }}</span>
+                <span class="position">{{ emp.position }}</span>
+              </div>
+              <div class="actions">
+                <span class="salary">${{ emp.salary.toLocaleString() }}</span>
+                <button class="edit-btn" @click="emp.isEditing = true">Edit</button>
+                <button class="delete-btn" @click="deleteEmployee(emp.id)">Remove</button>
+              </div>
+            </template>
+
           </li>
         </ul>
       </section>
@@ -95,22 +132,9 @@ onMounted(() => {
   color: #334155;
 }
 
-.app-header {
-  text-align: center;
-  margin-bottom: 40px;
-}
-
-.app-header h1 {
-  font-size: 2.5rem;
-  color: #1e293b;
-  margin: 0;
-}
-
-.app-header p {
-  color: #64748b;
-  font-size: 1.1rem;
-}
-
+.app-header { text-align: center; margin-bottom: 40px; }
+.app-header h1 { font-size: 2.5rem; color: #1e293b; margin: 0; }
+.app-header p { color: #64748b; font-size: 1.1rem; }
 
 .card {
   background: white;
@@ -120,18 +144,8 @@ onMounted(() => {
   border: 1px solid #e2e8f0;
 }
 
-
-.form-card h2 {
-  font-size: 1.25rem;
-  margin-top: 0;
-  margin-bottom: 20px;
-}
-
-.input-row {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
+.form-card h2 { font-size: 1.25rem; margin-top: 0; margin-bottom: 20px; }
+.input-row { display: flex; gap: 12px; flex-wrap: wrap; }
 
 input {
   flex: 1;
@@ -157,34 +171,18 @@ input:focus {
   border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s;
 }
 
-.add-btn:hover { background: #2563eb; }
-
-/* List Styling */
 .list-section { margin-top: 40px; }
+.list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
 
-.list-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
 
-.count {
-  background: #f1f5f9;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 0.875rem;
-  font-weight: 600;
-}
+.header-actions { display: flex; align-items: center; gap: 12px; }
+.search-bar { min-width: 200px; padding: 8px 12px; border-width: 2px; }
 
-.employee-list {
-  list-style: none;
-  padding: 0;
-}
+.count { background: #f1f5f9; padding: 4px 12px; border-radius: 20px; font-size: 0.875rem; font-weight: 600; }
 
+.employee-list { list-style: none; padding: 0; }
 .employee-item {
   background: white;
   margin-bottom: 12px;
@@ -194,35 +192,33 @@ input:focus {
   justify-content: space-between;
   align-items: center;
   border: 1px solid #e2e8f0;
-  transition: transform 0.1s;
-}
-
-.employee-item:hover {
-  transform: scale(1.01);
 }
 
 .info { display: flex; flex-direction: column; }
+.id-text { font-size: 0.7rem; color: #94a3b8; font-weight: bold; }
+.name { font-weight: 700; font-size: 1.1rem; color: #0f172a; }
+.position { color: #64748b; font-size: 0.9rem; }
 
-.name {
-  font-weight: 700;
-  font-size: 1.1rem;
-  color: #0f172a;
-}
+.actions { display: flex; align-items: center; gap: 12px; }
+.salary { font-weight: 600; color: #10b981; }
 
-.position {
+
+.edit-btn {
+  background: #f8fafc;
   color: #64748b;
-  font-size: 0.9rem;
+  border: 1px solid #e2e8f0;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
 }
 
-.actions {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
-.salary {
-  font-weight: 600;
-  color: #10b981;
+.save-btn {
+  background: #10b981;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
 }
 
 .delete-btn {
@@ -231,14 +227,7 @@ input:focus {
   border: 1px solid #fee2e2;
   padding: 8px 16px;
   border-radius: 6px;
-  font-size: 0.875rem;
   cursor: pointer;
-  transition: all 0.2s;
-}
-
-.delete-btn:hover {
-  background: #ef4444;
-  color: white;
 }
 
 .empty {
@@ -254,5 +243,7 @@ input:focus {
   .input-row { flex-direction: column; }
   .employee-item { flex-direction: column; align-items: flex-start; gap: 12px; }
   .actions { width: 100%; justify-content: space-between; }
+  .header-actions { width: 100%; }
+  .search-bar { width: 100%; }
 }
 </style>
