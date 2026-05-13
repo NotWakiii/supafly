@@ -109,7 +109,7 @@ onMounted(() => {
                 <span class="position">{{ emp.position }}</span>
               </div>
               <div class="actions">
-                <span class="salary">${{ emp.salary.toLocaleString() }}</span>
+                <span class="salary">PHP{{ emp.salary.toLocaleString() }}</span>
                 <button class="edit-btn" @click="emp.isEditing = true">Edit</button>
                 <button class="delete-btn" @click="deleteEmployee(emp.id)">Remove</button>
               </div>
